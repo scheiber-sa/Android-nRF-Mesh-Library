@@ -1,16 +1,10 @@
 package no.nordicsemi.android.mesh;
 
+import static androidx.room.ForeignKey.CASCADE;
+
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
-
-import com.google.gson.annotations.Expose;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,11 +16,18 @@ import androidx.room.Ignore;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
 import androidx.room.TypeConverters;
+
+import com.google.gson.annotations.Expose;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+
 import no.nordicsemi.android.mesh.transport.ProvisionedMeshNode;
 import no.nordicsemi.android.mesh.utils.MeshAddress;
 import no.nordicsemi.android.mesh.utils.MeshParserUtils;
-
-import static androidx.room.ForeignKey.CASCADE;
 
 /**
  * Class definition of a Provisioner of mesh network
@@ -41,21 +42,23 @@ import static androidx.room.ForeignKey.CASCADE;
 @RestrictTo(RestrictTo.Scope.LIBRARY)
 public class Provisioner implements Parcelable, Cloneable {
 
-    @ColumnInfo(name = "mesh_uuid")
-    @NonNull
-    @Expose
-    private String meshUuid;
+    public static final Creator<Provisioner> CREATOR = new Creator<Provisioner>() {
+        @Override
+        public Provisioner createFromParcel(Parcel in) {
+            return new Provisioner(in);
+        }
 
-    @PrimaryKey
-    @NonNull
-    @ColumnInfo(name = "provisioner_uuid")
-    @Expose
-    private String provisionerUuid;
-
-    @ColumnInfo(name = "name")
-    @Expose
-    private String provisionerName = "nRF Mesh Provisioner";
-
+        @Override
+        public Provisioner[] newArray(int size) {
+            return new Provisioner[size];
+        }
+    };
+    @Ignore
+    private final Comparator<AddressRange> addressRangeComparator = (addressRange1, addressRange2) ->
+            Integer.compare(addressRange1.getLowAddress(), addressRange2.getLowAddress());
+    @Ignore
+    private final Comparator<AllocatedSceneRange> sceneRangeComparator = (sceneRange1, sceneRange2) ->
+            Integer.compare(sceneRange1.getFirstScene(), sceneRange2.getFirstScene());
     @ColumnInfo(name = "allocated_unicast_ranges")
     @TypeConverters(MeshTypeConverters.class)
     @NonNull
@@ -73,26 +76,27 @@ public class Provisioner implements Parcelable, Cloneable {
     @NonNull
     @Expose
     List<AllocatedSceneRange> allocatedSceneRanges = new ArrayList<>();
-
+    @ColumnInfo(name = "mesh_uuid")
+    @NonNull
+    @Expose
+    private String meshUuid;
+    @PrimaryKey
+    @NonNull
+    @ColumnInfo(name = "provisioner_uuid")
+    @Expose
+    private String provisionerUuid;
+    @ColumnInfo(name = "name")
+    @Expose
+    private String provisionerName = "nRF Mesh Provisioner";
     @ColumnInfo(name = "provisioner_address")
     @Expose
     private Integer provisionerAddress = null;
-
     @ColumnInfo(name = "global_ttl")
     @Expose
-    private int globalTtl = 5;
-
+    private int globalTtl = 3;
     @ColumnInfo(name = "last_selected")
     @Expose
     private boolean lastSelected;
-
-    @Ignore
-    private final Comparator<AddressRange> addressRangeComparator = (addressRange1, addressRange2) ->
-            Integer.compare(addressRange1.getLowAddress(), addressRange2.getLowAddress());
-
-    @Ignore
-    private final Comparator<AllocatedSceneRange> sceneRangeComparator = (sceneRange1, sceneRange2) ->
-            Integer.compare(sceneRange1.getFirstScene(), sceneRange2.getFirstScene());
 
     /**
      * Constructs {@link Provisioner}
@@ -122,18 +126,6 @@ public class Provisioner implements Parcelable, Cloneable {
         globalTtl = in.readInt();
         lastSelected = in.readByte() != 0;
     }
-
-    public static final Creator<Provisioner> CREATOR = new Creator<Provisioner>() {
-        @Override
-        public Provisioner createFromParcel(Parcel in) {
-            return new Provisioner(in);
-        }
-
-        @Override
-        public Provisioner[] newArray(int size) {
-            return new Provisioner[size];
-        }
-    };
 
     /**
      * Returns the provisionerUuid of the Mesh network
@@ -282,13 +274,6 @@ public class Provisioner implements Parcelable, Cloneable {
     }
 
     /**
-     * Returns true if the provisioner is allowed to configure the network
-     */
-    public boolean supportsConfiguration() {
-        return provisionerAddress != null;
-    }
-
-    /**
      * Set the ttl of the provisioner
      *
      * @param ttl ttl
@@ -298,6 +283,13 @@ public class Provisioner implements Parcelable, Cloneable {
         if (!MeshParserUtils.isValidTtl(ttl))
             throw new IllegalArgumentException("Invalid ttl, ttl must range from 0 - 127");
         this.globalTtl = ttl;
+    }
+
+    /**
+     * Returns true if the provisioner is allowed to configure the network
+     */
+    public boolean supportsConfiguration() {
+        return provisionerAddress != null;
     }
 
     @RestrictTo(RestrictTo.Scope.LIBRARY)
